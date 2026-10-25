@@ -1,0 +1,5 @@
+as_of,region,total_vulns,open_vulns,overdue_vulns,kri_overdue_pct
+2026-10-01,AMER,8,5,4,50.0
+2026-10-01,APAC,7,3,3,42.9
+2026-10-01,EMEA,10,5,4,40.0
+2026-10-01,LATAM,5,4,3,60.0
