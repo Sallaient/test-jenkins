@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """KRI: % of Critical/High vulnerabilities open beyond SLA, per region."""
 import argparse
+import logging
+import sys
+
 import pandas as pd
+
+log = logging.getLogger("kri")
 
 SLA_DAYS = {"Critical": 7, "High": 30}  # Medium is out of scope for this KRI
 
@@ -28,13 +33,35 @@ def compute_kri(df: pd.DataFrame, as_of: pd.Timestamp) -> pd.DataFrame:
     return out
 
 
+def setup_logging(log_file=None):
+    handlers = [logging.StreamHandler(sys.stdout)]
+    if log_file:
+        handlers.append(logging.FileHandler(log_file))
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=handlers,
+    )
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--input", required=True)
     p.add_argument("--output", required=True)
     p.add_argument("--as-of", default=pd.Timestamp.today().date().isoformat())
+    p.add_argument("--log-file", default=None)
     a = p.parse_args()
+    setup_logging(a.log_file)
 
-    result = compute_kri(pd.read_csv(a.input), pd.Timestamp(a.as_of))
-    result.to_csv(a.output, index=False)
-    print(result.to_string(index=False))
+    try:
+        log.info("Start: input=%s as_of=%s", a.input, a.as_of)
+        df = pd.read_csv(a.input)
+        log.info("Loaded %d rows", len(df))
+        result = compute_kri(df, pd.Timestamp(a.as_of))
+        result.to_csv(a.output, index=False)
+        log.info("KRI computed for %d regions, written to %s", len(result), a.output)
+        for r in result.itertuples():
+            log.info("  %s: %.1f%% overdue (%d/%d)", r.region, r.kri_overdue_pct, r.overdue_vulns, r.total_vulns)
+    except Exception:
+        log.exception("KRI computation failed")
+        sys.exit(1)
